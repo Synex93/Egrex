@@ -1,1 +1,8 @@
 /target
+config.toml
+pid.lock
+stop.lock
+traffic.lock
+upstreams.lock
+candidates.lock
+online.lock

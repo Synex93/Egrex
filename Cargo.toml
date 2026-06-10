@@ -5,9 +5,12 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
+base64 = "0.22.1"
+chrono = { version = "0.4.41", default-features = false, features = ["clock"] }
 clap = { version = "4.5.40", features = ["derive"] }
 fast-socks5 = "1.0.0"
 rand = "0.10.1"
+reqwest = { version = "0.12.20", default-features = false, features = ["json", "rustls-tls", "socks"] }
 serde = {version="1.0.228",features=["derive"]}
 tokio = {version ="1.52.3",features=["full"]}
 toml = "1.1.2"

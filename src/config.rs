@@ -4,11 +4,18 @@ use std::{fs, path::Path};
 
 const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 1080;
+const DEFAULT_CHECK_URL: &str = "https://cloudflare.com/cdn-cgi/trace";
+const DEFAULT_FOFA_API: &str = "https://fofa.info/api/v1/";
+const DEFAULT_MAX_LATENCY: u64 = 5000;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppConfig {
     pub host: String,
     pub port: u16,
+    pub check_url: String,
+    pub max_latency: u64,
+    pub fofa_api: String,
+    pub fofa_key: String,
 }
 
 impl Default for AppConfig {
@@ -16,6 +23,10 @@ impl Default for AppConfig {
         Self {
             host: DEFAULT_HOST.to_string(),
             port: DEFAULT_PORT,
+            check_url: DEFAULT_CHECK_URL.to_string(),
+            max_latency: DEFAULT_MAX_LATENCY,
+            fofa_api: DEFAULT_FOFA_API.to_string(),
+            fofa_key: String::new(),
         }
     }
 }
@@ -58,6 +69,10 @@ impl AppConfig {
 struct RawConfig {
     host: Option<String>,
     port: Option<u16>,
+    check_url: Option<String>,
+    max_latency: Option<u64>,
+    fofa_api: Option<String>,
+    fofa_key: Option<String>,
     listen: Option<String>,
 }
 
@@ -78,6 +93,22 @@ impl RawConfig {
 
         if let Some(port) = self.port {
             config.port = port;
+        }
+
+        if let Some(check_url) = self.check_url {
+            config.check_url = check_url;
+        }
+
+        if let Some(max_latency) = self.max_latency {
+            config.max_latency = max_latency;
+        }
+
+        if let Some(fofa_api) = self.fofa_api {
+            config.fofa_api = fofa_api;
+        }
+
+        if let Some(fofa_key) = self.fofa_key {
+            config.fofa_key = fofa_key;
         }
 
         config
