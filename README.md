@@ -2,6 +2,108 @@
 
 Egrex is a local SOCKS5 proxy forwarder with an upstream SOCKS5 proxy pool. It listens locally and rotates outbound requests through verified upstream SOCKS5 nodes.
 
+## 中文说明
+
+Egrex 是一个本地 SOCKS5 代理池转发工具。它会在本地监听一个 SOCKS5 代理地址，并从在线上游代理池中轮转选择 SOCKS5 节点进行转发。
+
+后台运行后，Egrex 会自动维护两个地址池：
+
+```text
+candidates.lock  候选地址池，目标数量 200
+online.lock      在线地址池，目标数量 80
+```
+
+主要流程：
+
+```text
+FOFA API
+  -> 候选地址池
+  -> 延时和可用性检测
+  -> 在线地址池
+  -> 本地 SOCKS5 转发
+```
+
+### 中文快速开始
+
+设置本地监听地址：
+
+```bash
+cargo run -- set host 127.0.0.1
+cargo run -- set port 1080
+```
+
+设置 FOFA：
+
+```bash
+cargo run -- set fofa-api https://fofa.info/api/v1/
+cargo run -- set fofa-key <your_api_key>
+```
+
+设置检测地址和最大允许延时，延时单位是毫秒：
+
+```bash
+cargo run -- set check-url https://cloudflare.com/cdn-cgi/trace
+cargo run -- set max-latency 5000
+```
+
+启动后台代理：
+
+```bash
+cargo run -- start
+```
+
+然后把浏览器、系统代理、curl 或其他应用的代理设置为：
+
+```text
+SOCKS5 127.0.0.1:1080
+```
+
+查看运行状态、监听地址、流量和地址池状态：
+
+```bash
+cargo run -- status
+```
+
+温和停止后台代理，已有连接会尽量自然结束：
+
+```bash
+cargo run -- stop
+```
+
+强制停止：
+
+```bash
+cargo run -- stop --force
+```
+
+### 中文命令参考
+
+```bash
+cargo run -- run                 # 前台运行
+cargo run -- start               # 后台运行
+cargo run -- stop                # 温和停止
+cargo run -- stop --force        # 强制停止
+cargo run -- status              # 查看状态
+cargo run -- update              # 从 FOFA 拉取候选代理
+```
+
+配置命令：
+
+```bash
+cargo run -- set host <host>
+cargo run -- set port <port>
+cargo run -- set check-url <url>
+cargo run -- set max-latency <milliseconds>
+cargo run -- set fofa-api <url>
+cargo run -- set fofa-key <key>
+```
+
+多单词配置项也支持下划线别名，例如 `fofa_key`、`fofa_api`、`check_url`、`max_latency`。
+
+运行中的服务会自动重新加载 `config.toml`。修改 `host` 或 `port` 后，监听器会重新绑定到新地址；已有连接会继续处理到结束。
+
+`config.toml`、`pid.lock`、`traffic.lock`、`candidates.lock`、`online.lock` 等运行时文件不会提交到 Git。`config.toml` 可能包含 FOFA key，请不要手动提交。
+
 ## Features
 
 - Local no-auth SOCKS5 listener.
