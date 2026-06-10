@@ -3,6 +3,8 @@ use reqwest::{Client, Proxy};
 use std::{collections::BTreeSet, fs, path::Path, sync::Arc, time::Duration};
 use tokio::sync::Semaphore;
 
+const CHECK_ATTEMPTS_PER_URL: usize = 3;
+
 #[derive(Debug, Clone)]
 pub struct AliveUpstream {
     pub host: String,
@@ -11,7 +13,7 @@ pub struct AliveUpstream {
 
 pub async fn check_hosts(
     upstreams: Vec<String>,
-    check_url: &str,
+    check_urls: &[String],
     concurrency: usize,
     timeout: Duration,
     max_latency: Duration,
@@ -21,11 +23,11 @@ pub async fn check_hosts(
 
     for upstream in upstreams {
         let permit = semaphore.clone().acquire_owned().await?;
-        let check_url = check_url.to_string();
+        let check_urls = check_urls.to_vec();
 
         tasks.push(tokio::spawn(async move {
             let _permit = permit;
-            check_one(&upstream, &check_url, timeout, max_latency)
+            check_one(&upstream, &check_urls, timeout, max_latency)
                 .await
                 .map(|latency| AliveUpstream {
                     host: upstream,
@@ -75,7 +77,7 @@ pub fn write_upstreams(path: &Path, upstreams: &[String]) -> Result<()> {
 
 pub async fn check_one(
     upstream: &str,
-    check_url: &str,
+    check_urls: &[String],
     timeout: Duration,
     max_latency: Duration,
 ) -> Option<Duration> {
@@ -100,21 +102,32 @@ pub async fn check_one(
         }
     };
 
-    let started_at = std::time::Instant::now();
-    match client.get(check_url).send().await {
-        Ok(response) => {
-            let latency = started_at.elapsed();
-            if latency > max_latency {
-                tracing::debug!(%upstream, status = %response.status(), latency_ms = latency.as_millis(), max_latency_ms = max_latency.as_millis(), "upstream check latency exceeded");
-                return None;
-            }
+    for check_url in check_urls.iter().filter(|url| !url.trim().is_empty()) {
+        for attempt in 1..=CHECK_ATTEMPTS_PER_URL {
+            let started_at = std::time::Instant::now();
+            match client.get(check_url).send().await {
+                Ok(response) => {
+                    let status = response.status();
+                    let latency = started_at.elapsed();
+                    if latency > max_latency {
+                        tracing::debug!(%upstream, %check_url, attempt, status = %status, latency_ms = latency.as_millis(), max_latency_ms = max_latency.as_millis(), "upstream check latency exceeded");
+                        continue;
+                    }
 
-            tracing::debug!(%upstream, status = %response.status(), latency_ms = latency.as_millis(), "upstream check passed");
-            Some(latency)
-        }
-        Err(err) => {
-            tracing::debug!(%upstream, error = %err, "upstream check failed");
-            None
+                    if !status.is_success() {
+                        tracing::debug!(%upstream, %check_url, attempt, status = %status, latency_ms = latency.as_millis(), "upstream check returned non-success status");
+                        continue;
+                    }
+
+                    tracing::debug!(%upstream, %check_url, attempt, status = %status, latency_ms = latency.as_millis(), "upstream check passed");
+                    return Some(latency);
+                }
+                Err(err) => {
+                    tracing::debug!(%upstream, %check_url, attempt, error = %err, "upstream check failed");
+                }
+            }
         }
     }
+
+    None
 }

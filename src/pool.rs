@@ -113,7 +113,7 @@ impl ProxyPool {
 
     pub async fn select_upstream(
         &self,
-        check_url: &str,
+        check_urls: &[String],
         max_latency: Duration,
     ) -> Result<Option<String>> {
         let attempts = self.online_len().await;
@@ -127,7 +127,7 @@ impl ProxyPool {
                 return Ok(Some(upstream));
             }
 
-            if checker::check_one(&upstream, check_url, CHECK_TIMEOUT, max_latency)
+            if checker::check_one(&upstream, check_urls, CHECK_TIMEOUT, max_latency)
                 .await
                 .is_some()
             {
@@ -164,7 +164,7 @@ impl ProxyPool {
 
         let alive = checker::check_hosts(
             expired.clone(),
-            &config.check_url,
+            &check_urls(config),
             CHECK_CONCURRENCY,
             CHECK_TIMEOUT,
             max_latency(config),
@@ -249,7 +249,7 @@ impl ProxyPool {
 
         let alive = checker::check_hosts(
             test_batch.clone(),
-            &config.check_url,
+            &check_urls(config),
             CHECK_CONCURRENCY,
             CHECK_TIMEOUT,
             max_latency(config),
@@ -316,6 +316,15 @@ impl ProxyPool {
 
 fn max_latency(config: &AppConfig) -> Duration {
     Duration::from_millis(config.max_latency.max(1))
+}
+
+pub fn check_urls(config: &AppConfig) -> Vec<String> {
+    [config.check_url.clone(), config.check_fallback_url.clone()]
+        .into_iter()
+        .filter(|url| !url.trim().is_empty())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn read_existing(path: &Path) -> Result<Vec<String>> {

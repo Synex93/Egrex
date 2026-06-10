@@ -30,7 +30,7 @@ pub enum Command {
     /// Fetch SOCKS5 upstream candidates from FOFA.
     Update {
         /// Search for SOCKS5 nodes discovered within the last number of days.
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = 30)]
         days: i64,
         /// Number of results to fetch from one page.
         #[arg(long, default_value_t = 1000)]
@@ -62,6 +62,12 @@ pub enum SetCommand {
     #[command(alias = "check_url")]
     CheckUrl {
         /// HTTP/HTTPS URL used to check upstream proxy quality.
+        value: String,
+    },
+    /// Set the fallback URL used to check upstream proxy availability.
+    #[command(alias = "check_fallback_url")]
+    CheckFallbackUrl {
+        /// Secondary HTTP/HTTPS URL used when the primary check URL fails.
         value: String,
     },
     /// Set the maximum allowed upstream proxy latency in milliseconds.

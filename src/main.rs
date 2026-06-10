@@ -138,6 +138,10 @@ async fn main() -> Result<()> {
                     Url::parse(&value)?;
                     config.check_url = value;
                 }
+                SetCommand::CheckFallbackUrl { value } => {
+                    Url::parse(&value)?;
+                    config.check_fallback_url = value;
+                }
                 SetCommand::MaxLatency { value } => config.max_latency = value.max(1),
                 SetCommand::FofaApi { value } => {
                     Url::parse(&value)?;
@@ -179,6 +183,7 @@ fn format_bytes(bytes: u64) -> String {
 
 fn print_pool_status(config: &AppConfig, paths: &RuntimePaths) -> Result<()> {
     println!("check_url = {}", config.check_url);
+    println!("check_fallback_url = {}", config.check_fallback_url);
     println!("max_latency = {} ms", config.max_latency);
     println!("fofa_after = {}", fofa::query_after(pool::FOFA_DAYS));
     match fofa::read_state(&paths.fofa_state)? {

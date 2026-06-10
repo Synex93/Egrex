@@ -13,7 +13,7 @@ Egrex is a local SOCKS5 proxy forwarder with an upstream SOCKS5 proxy pool. It l
 - FOFA refill stores a page cursor to avoid repeatedly scanning page 1, and waits for the search window to move forward after the current window is exhausted.
 - Candidate refill fetches 1000 hosts per page and only refills when the candidate pool drops below 200.
 - Candidate and online pool maintenance while the service is running.
-- Latency-based upstream quality filtering.
+- Latency-based upstream quality filtering with two check URLs and retries.
 - Graceful stop by default, with force stop as an explicit option.
 - Runtime config reload for host, port, FOFA settings, check URL, and latency threshold.
 
@@ -45,6 +45,7 @@ Set the upstream quality check target and maximum latency:
 
 ```bash
 target/release/Egrex.exe set check-url https://cloudflare.com/cdn-cgi/trace
+target/release/Egrex.exe set check-fallback-url https://myip.ipip.net
 target/release/Egrex.exe set max-latency 5000
 ```
 
@@ -95,12 +96,13 @@ Configuration commands:
 target/release/Egrex.exe set host <host>
 target/release/Egrex.exe set port <port>
 target/release/Egrex.exe set check-url <url>
+target/release/Egrex.exe set check-fallback-url <url>
 target/release/Egrex.exe set max-latency <milliseconds>
 target/release/Egrex.exe set fofa-api <url>
 target/release/Egrex.exe set fofa-key <key>
 ```
 
-Aliases using underscores are also supported for multi-word settings, for example `fofa_key`, `fofa_api`, `check_url`, and `max_latency`.
+Aliases using underscores are also supported for multi-word settings, for example `fofa_key`, `fofa_api`, `check_url`, `check_fallback_url`, and `max_latency`.
 
 ## Pool Model
 
@@ -126,6 +128,7 @@ While the service is running:
 - The candidate pool is automatically refilled from FOFA when it drops below the target size.
 - FOFA pagination continues from `fofa_state.toml`; when a page returns no hosts, refill pauses for that search window instead of restarting at page 1.
 - The online pool is checked periodically and replenished from candidates when nodes fail.
+- A proxy check tries the primary and fallback check URLs, with three attempts per URL. Any successful URL within `max_latency` keeps the upstream alive.
 - Each new client connection selects an upstream from the online pool in round-robin order.
 - Upstreams that fail during forwarding are removed from the online pool.
 - Recently checked upstreams are cached briefly to avoid repeated checks.
@@ -139,6 +142,7 @@ Changes to these fields are applied without restarting:
 - `host`
 - `port`
 - `check_url`
+- `check_fallback_url`
 - `max_latency`
 - `fofa_api`
 - `fofa_key`

@@ -13,7 +13,7 @@ Egrex 是一个本地 SOCKS5 代理池转发工具。它会在本地监听一个
 - FOFA 补货会记录页码游标，避免每次重复扫描第一页；当前搜索窗口耗尽后，会等待搜索窗口日期前移后再重新从第一页开始。
 - 候选池补货每页拉取 1000 个地址，只在候选池低于 200 时补货。
 - 服务运行时自动维护候选地址池和在线地址池。
-- 基于延时的上游代理质量过滤。
+- 基于延时的上游代理质量过滤，支持两个检测 URL 和重试。
 - 默认温和停止，也支持显式强制停止。
 - 支持运行时重新加载 host、port、FOFA 设置、检测 URL 和延时阈值。
 
@@ -52,6 +52,7 @@ Egrex.exe set fofa-key <your_api_key>
 
 ```bash
 Egrex.exe set check-url https://cloudflare.com/cdn-cgi/trace
+Egrex.exe set check-fallback-url https://myip.ipip.net
 Egrex.exe set max-latency 5000
 ```
 
@@ -102,12 +103,13 @@ Egrex.exe update
 Egrex.exe set host <host>
 Egrex.exe set port <port>
 Egrex.exe set check-url <url>
+Egrex.exe set check-fallback-url <url>
 Egrex.exe set max-latency <milliseconds>
 Egrex.exe set fofa-api <url>
 Egrex.exe set fofa-key <key>
 ```
 
-多单词配置项也支持下划线别名，例如 `fofa_key`、`fofa_api`、`check_url` 和 `max_latency`。
+多单词配置项也支持下划线别名，例如 `fofa_key`、`fofa_api`、`check_url`、`check_fallback_url` 和 `max_latency`。
 
 ## 地址池模型
 
@@ -133,6 +135,7 @@ FOFA API
 - 候选地址池低于目标数量时，会自动从 FOFA 补充。
 - FOFA 分页会从 `fofa_state.toml` 记录的位置继续；如果某一页没有返回地址，本轮搜索窗口会暂停补货，不会重新扫描第一页。
 - 在线地址池会定期检查，节点失败后会从候选地址池补充可用节点。
+- 每次代理检测会尝试主检测 URL 和备用检测 URL，每个 URL 最多尝试三次。任意 URL 在 `max_latency` 内成功，就保留该上游节点。
 - 每个新的客户端连接会从在线地址池中按轮转方式选择上游代理。
 - 转发过程中失败的上游代理会从在线地址池移除。
 - 最近检查过的上游节点会短暂缓存检测结果，避免重复检测。
@@ -146,6 +149,7 @@ FOFA API
 - `host`
 - `port`
 - `check_url`
+- `check_fallback_url`
 - `max_latency`
 - `fofa_api`
 - `fofa_key`

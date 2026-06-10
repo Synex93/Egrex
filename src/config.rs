@@ -5,6 +5,7 @@ use std::{fs, path::Path};
 const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 1080;
 const DEFAULT_CHECK_URL: &str = "https://cloudflare.com/cdn-cgi/trace";
+const DEFAULT_CHECK_FALLBACK_URL: &str = "https://myip.ipip.net";
 const DEFAULT_FOFA_API: &str = "https://fofa.info/api/v1/";
 const DEFAULT_MAX_LATENCY: u64 = 5000;
 
@@ -13,6 +14,7 @@ pub struct AppConfig {
     pub host: String,
     pub port: u16,
     pub check_url: String,
+    pub check_fallback_url: String,
     pub max_latency: u64,
     pub fofa_api: String,
     pub fofa_key: String,
@@ -24,6 +26,7 @@ impl Default for AppConfig {
             host: DEFAULT_HOST.to_string(),
             port: DEFAULT_PORT,
             check_url: DEFAULT_CHECK_URL.to_string(),
+            check_fallback_url: DEFAULT_CHECK_FALLBACK_URL.to_string(),
             max_latency: DEFAULT_MAX_LATENCY,
             fofa_api: DEFAULT_FOFA_API.to_string(),
             fofa_key: String::new(),
@@ -70,6 +73,7 @@ struct RawConfig {
     host: Option<String>,
     port: Option<u16>,
     check_url: Option<String>,
+    check_fallback_url: Option<String>,
     max_latency: Option<u64>,
     fofa_api: Option<String>,
     fofa_key: Option<String>,
@@ -97,6 +101,10 @@ impl RawConfig {
 
         if let Some(check_url) = self.check_url {
             config.check_url = check_url;
+        }
+
+        if let Some(check_fallback_url) = self.check_fallback_url {
+            config.check_fallback_url = check_fallback_url;
         }
 
         if let Some(max_latency) = self.max_latency {

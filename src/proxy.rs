@@ -12,7 +12,12 @@ use tokio::{
     time::{self, Duration},
 };
 
-use crate::{config::AppConfig, daemon, pool::ProxyPool, traffic::TrafficCounter};
+use crate::{
+    config::AppConfig,
+    daemon,
+    pool::{self, ProxyPool},
+    traffic::TrafficCounter,
+};
 
 pub async fn run(
     config: Arc<RwLock<AppConfig>>,
@@ -41,14 +46,14 @@ pub async fn run(
                 let traffic = traffic.clone();
                 let pool = pool.clone();
                 let request_config = config.read().await.clone();
-                let check_url = request_config.check_url;
+                let check_urls = pool::check_urls(&request_config);
                 let max_latency = Duration::from_millis(request_config.max_latency.max(1));
                 let active_connections = active_connections.clone();
                 let _guard = active_connections.guard();
 
                 tokio::spawn(async move {
                     let _guard = _guard;
-                    if let Err(err) = handle_client(socket, peer_addr, traffic, pool, check_url, max_latency).await {
+                    if let Err(err) = handle_client(socket, peer_addr, traffic, pool, check_urls, max_latency).await {
                         tracing::warn!(client = %peer_addr, error = %err, "socks5 request failed");
                     }
                 });
@@ -142,7 +147,7 @@ async fn handle_client(
     peer_addr: SocketAddr,
     traffic: Arc<TrafficCounter>,
     pool: ProxyPool,
-    check_url: String,
+    check_urls: Vec<String>,
     max_latency: Duration,
 ) -> Result<()> {
     let (proto, command, target_addr) = Socks5ServerProtocol::accept_no_auth(socket)
@@ -163,7 +168,7 @@ async fn handle_client(
     let (target_host, target_port) = target_addr.into_string_and_port();
 
     let upstream_addr = pool
-        .select_upstream(&check_url, max_latency)
+        .select_upstream(&check_urls, max_latency)
         .await?
         .context("online upstream pool is empty")?;
 
