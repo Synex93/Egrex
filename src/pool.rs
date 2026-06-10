@@ -20,7 +20,7 @@ const CHECK_CONCURRENCY: usize = 32;
 const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 const CHECK_CACHE_TTL: Duration = Duration::from_secs(10);
 const MAINTAIN_INTERVAL: Duration = Duration::from_secs(10);
-pub const FOFA_DAYS: i64 = 10;
+pub const FOFA_DAYS: i64 = 30;
 const FOFA_PAGE_SIZE: u32 = 1000;
 
 #[derive(Debug, Clone)]
