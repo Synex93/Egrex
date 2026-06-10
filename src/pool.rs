@@ -198,6 +198,25 @@ impl ProxyPool {
     }
 
     async fn maintain_candidates(&self, config: &AppConfig) -> Result<()> {
+        // Reload candidates from disk every cycle to pick up external changes (e.g. from 'update' command).
+        {
+            let mut inner = self.inner.lock().await;
+            if let Ok(from_disk) = read_existing(&self.candidates_path) {
+                if !from_disk.is_empty() || inner.candidates.is_empty() {
+                    let disk_set: BTreeSet<_> = from_disk.iter().cloned().collect();
+                    let online_set: BTreeSet<_> = inner.online.iter().cloned().collect();
+                    for host in from_disk {
+                        if !online_set.contains(&host) && !inner.candidates.contains(&host) {
+                            inner.candidates.push(host);
+                        }
+                    }
+                    inner
+                        .candidates
+                        .retain(|h| disk_set.contains(h) || online_set.contains(h));
+                }
+            }
+        }
+
         let current_len = {
             let inner = self.inner.lock().await;
             inner.candidates.len()
