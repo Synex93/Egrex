@@ -9,6 +9,8 @@ Egrex 是一个本地 SOCKS5 代理池转发工具。它会在本地监听一个
 - 本地无认证 SOCKS5 监听器。
 - 从在线地址池中轮转选择上游 SOCKS5 节点。
 - 基于 FOFA 拉取候选代理。
+- FOFA 默认搜索最近 10 天发现的资产。
+- FOFA 补货会记录页码游标，避免每次重复扫描第一页。
 - 服务运行时自动维护候选地址池和在线地址池。
 - 基于延时的上游代理质量过滤。
 - 默认温和停止，也支持显式强制停止。
@@ -166,6 +168,7 @@ traffic.lock
 upstreams.lock
 candidates.lock
 online.lock
+fofa_state.toml
 ```
 
 不要提交 `~/.egrex/config.toml`，它可能包含私有 FOFA 凭据。

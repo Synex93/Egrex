@@ -30,7 +30,7 @@ pub enum Command {
     /// Fetch SOCKS5 upstream candidates from FOFA.
     Update {
         /// Search for SOCKS5 nodes discovered within the last number of days.
-        #[arg(long, default_value_t = 7)]
+        #[arg(long, default_value_t = 10)]
         days: i64,
         /// Number of results to fetch from one page.
         #[arg(long, default_value_t = 100)]

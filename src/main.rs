@@ -31,7 +31,9 @@ async fn main() -> Result<()> {
         Command::Run => {
             let config = AppConfig::load_or_default(&paths.config)?;
             let traffic = traffic::TrafficCounter::init(&paths.traffic)?;
-            let pool = pool::ProxyPool::init(&config, &paths.online, &paths.candidates).await?;
+            let pool =
+                pool::ProxyPool::init(&config, &paths.online, &paths.candidates, &paths.fofa_state)
+                    .await?;
             let config = Arc::new(RwLock::new(config));
             pool.spawn_maintainers(config.clone());
             proxy::run(
@@ -114,6 +116,8 @@ async fn main() -> Result<()> {
 
             println!("updated upstream hosts");
             println!("query = {}", store.query);
+            println!("after = {}", store.after);
+            println!("next_page = {}", store.next_page);
             println!("hosts = {}", store.hosts.len());
             println!("output = {}", paths.candidates.display());
         }
@@ -168,6 +172,11 @@ fn format_bytes(bytes: u64) -> String {
 fn print_pool_status(config: &AppConfig, paths: &RuntimePaths) -> Result<()> {
     println!("check_url = {}", config.check_url);
     println!("max_latency = {} ms", config.max_latency);
+    println!("fofa_after = {}", fofa::query_after(pool::FOFA_DAYS));
+    match fofa::read_state(&paths.fofa_state)? {
+        Some(state) => println!("fofa_next_page = {}", state.next_page),
+        None => println!("fofa_next_page = 1"),
+    }
     println!("online_pool = {}/80", count_pool_lines(&paths.online)?);
     println!(
         "candidate_pool = {}/{}",

@@ -15,6 +15,7 @@ pub struct RuntimePaths {
     pub traffic: PathBuf,
     pub online: PathBuf,
     pub candidates: PathBuf,
+    pub fofa_state: PathBuf,
 }
 
 impl RuntimePaths {
@@ -30,6 +31,7 @@ impl RuntimePaths {
             traffic: data_dir.join("traffic.lock"),
             online: data_dir.join("online.lock"),
             candidates: data_dir.join("candidates.lock"),
+            fofa_state: data_dir.join("fofa_state.toml"),
             data_dir,
         };
 

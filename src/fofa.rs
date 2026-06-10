@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use base64::{Engine, engine::general_purpose::STANDARD};
-use chrono::{Duration, Local};
-use serde::Deserialize;
+use chrono::{Duration, Local, NaiveDate};
+use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, fs, path::Path};
 use url::Url;
 
@@ -12,7 +12,15 @@ const SEARCH_PATH: &str = "search/all";
 #[derive(Debug)]
 pub struct UpstreamStore {
     pub query: String,
+    pub after: String,
     pub hosts: Vec<String>,
+    pub next_page: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FofaState {
+    pub query_after: String,
+    pub next_page: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,6 +50,34 @@ pub async fn update_many(
     Ok(store)
 }
 
+pub async fn fetch_hosts_with_state(
+    config: &AppConfig,
+    state_path: impl AsRef<Path>,
+    days: i64,
+    page_size: u32,
+    limit: usize,
+) -> Result<UpstreamStore> {
+    let state_path = state_path.as_ref();
+    let after = query_after(days);
+    let state = read_state(state_path)?.filter(|state| state.query_after == after);
+    let start_page = state.map_or(1, |state| state.next_page.max(1));
+
+    let mut store = fetch_hosts(config, days, page_size, start_page, limit).await?;
+    if store.hosts.is_empty() && start_page > 1 {
+        store = fetch_hosts(config, days, page_size, 1, limit).await?;
+    }
+
+    write_state(
+        state_path,
+        &FofaState {
+            query_after: store.after.clone(),
+            next_page: store.next_page,
+        },
+    )?;
+
+    Ok(store)
+}
+
 pub async fn fetch_hosts(
     config: &AppConfig,
     days: i64,
@@ -53,10 +89,12 @@ pub async fn fetch_hosts(
         bail!("fofa_key is empty, set it with `egrex set fofa-key <key>` first");
     }
 
-    let query = build_query(days);
+    let after = query_after(days);
+    let query = build_query(&after);
     let qbase64 = STANDARD.encode(query.as_bytes());
     let mut hosts = BTreeSet::new();
     let mut page = start_page.max(1);
+    let mut next_page = page;
 
     while hosts.len() < limit {
         let url = build_search_url(
@@ -70,6 +108,7 @@ pub async fn fetch_hosts(
         let page_hosts = parse_hosts(response);
 
         if page_hosts.is_empty() {
+            next_page = 1;
             break;
         }
 
@@ -81,11 +120,14 @@ pub async fn fetch_hosts(
         }
 
         page += 1;
+        next_page = page;
     }
 
     Ok(UpstreamStore {
         query,
+        after,
         hosts: hosts.into_iter().collect(),
+        next_page,
     })
 }
 
@@ -128,14 +170,45 @@ fn parse_hosts(response: FofaResponse) -> Vec<String> {
         .collect()
 }
 
-fn build_query(days: i64) -> String {
+pub fn query_after(days: i64) -> String {
     let days = days.max(1);
     let after = Local::now() - Duration::days(days);
-    let after = after.format("%Y-%m-%d");
+    after.format("%Y-%m-%d").to_string()
+}
 
+fn build_query(after: &str) -> String {
     format!(
         "protocol==\"socks5\" && \"Version:5 Method:No Authentication(0x00)\" && after=\"{after}\" && country=\"CN\""
     )
+}
+
+pub fn read_state(path: impl AsRef<Path>) -> Result<Option<FofaState>> {
+    let path = path.as_ref();
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("failed to read fofa state from {}", path.display()))?;
+    if content.trim().is_empty() {
+        return Ok(None);
+    }
+
+    let state: FofaState = toml::from_str(&content)
+        .with_context(|| format!("failed to parse fofa state from {}", path.display()))?;
+
+    if state.next_page == 0 || NaiveDate::parse_from_str(&state.query_after, "%Y-%m-%d").is_err() {
+        return Ok(None);
+    }
+
+    Ok(Some(state))
+}
+
+fn write_state(path: impl AsRef<Path>, state: &FofaState) -> Result<()> {
+    let path = path.as_ref();
+    let content = toml::to_string_pretty(state).context("failed to serialize fofa state")?;
+    fs::write(path, content)
+        .with_context(|| format!("failed to write fofa state to {}", path.display()))
 }
 
 fn build_search_url(api_base: &str, key: &str, qbase64: &str, size: u32, page: u32) -> Result<Url> {

@@ -9,6 +9,8 @@ Egrex is a local SOCKS5 proxy forwarder with an upstream SOCKS5 proxy pool. It l
 - Local no-auth SOCKS5 listener.
 - Upstream SOCKS5 rotation from the online pool.
 - FOFA-based candidate discovery.
+- FOFA discovery scans assets discovered within the last 10 days by default.
+- FOFA refill stores a page cursor to avoid repeatedly scanning page 1.
 - Candidate and online pool maintenance while the service is running.
 - Latency-based upstream quality filtering.
 - Graceful stop by default, with force stop as an explicit option.
@@ -159,6 +161,7 @@ traffic.lock
 upstreams.lock
 candidates.lock
 online.lock
+fofa_state.toml
 ```
 
 Do not commit `~/.egrex/config.toml`; it may contain private FOFA credentials.

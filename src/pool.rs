@@ -19,7 +19,7 @@ const CHECK_CONCURRENCY: usize = 32;
 const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 const CHECK_CACHE_TTL: Duration = Duration::from_secs(10);
 const MAINTAIN_INTERVAL: Duration = Duration::from_secs(10);
-const FOFA_DAYS: i64 = 7;
+pub const FOFA_DAYS: i64 = 10;
 const FOFA_PAGE_SIZE: u32 = 100;
 
 #[derive(Debug, Clone)]
@@ -27,6 +27,7 @@ pub struct ProxyPool {
     inner: Arc<Mutex<PoolData>>,
     online_path: PathBuf,
     candidates_path: PathBuf,
+    fofa_state_path: PathBuf,
 }
 
 #[derive(Debug, Default)]
@@ -42,15 +43,23 @@ impl ProxyPool {
         config: &AppConfig,
         online_path: impl AsRef<Path>,
         candidates_path: impl AsRef<Path>,
+        fofa_state_path: impl AsRef<Path>,
     ) -> Result<Self> {
         let online_path = online_path.as_ref().to_path_buf();
         let candidates_path = candidates_path.as_ref().to_path_buf();
+        let fofa_state_path = fofa_state_path.as_ref().to_path_buf();
         let online = read_existing(&online_path)?;
         let mut candidates = read_existing(&candidates_path)?;
 
         if candidates.len() < CANDIDATE_TARGET {
-            let fetched =
-                fofa::fetch_hosts(config, FOFA_DAYS, FOFA_PAGE_SIZE, 1, CANDIDATE_TARGET).await?;
+            let fetched = fofa::fetch_hosts_with_state(
+                config,
+                &fofa_state_path,
+                FOFA_DAYS,
+                FOFA_PAGE_SIZE,
+                CANDIDATE_TARGET,
+            )
+            .await?;
             candidates = merge_hosts(candidates, fetched.hosts, CANDIDATE_TARGET);
             checker::write_upstreams(&candidates_path, &candidates)?;
         }
@@ -64,6 +73,7 @@ impl ProxyPool {
             })),
             online_path,
             candidates_path,
+            fofa_state_path,
         };
 
         if pool.online_len().await == 0 {
@@ -196,8 +206,14 @@ impl ProxyPool {
             return Ok(());
         }
 
-        let fetched =
-            fofa::fetch_hosts(config, FOFA_DAYS, FOFA_PAGE_SIZE, 1, CANDIDATE_TARGET).await?;
+        let fetched = fofa::fetch_hosts_with_state(
+            config,
+            &self.fofa_state_path,
+            FOFA_DAYS,
+            FOFA_PAGE_SIZE,
+            CANDIDATE_TARGET,
+        )
+        .await?;
         let mut inner = self.inner.lock().await;
         let online = inner.online.iter().cloned().collect::<BTreeSet<_>>();
         let merged = merge_hosts(inner.candidates.clone(), fetched.hosts, CANDIDATE_TARGET);
