@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
+clap = { version = "4.5.40", features = ["derive"] }
 fast-socks5 = "1.0.0"
 rand = "0.10.1"
 serde = {version="1.0.228",features=["derive"]}
