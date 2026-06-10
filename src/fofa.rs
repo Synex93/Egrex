@@ -15,12 +15,15 @@ pub struct UpstreamStore {
     pub after: String,
     pub hosts: Vec<String>,
     pub next_page: u32,
+    pub exhausted: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FofaState {
     pub query_after: String,
     pub next_page: u32,
+    #[serde(default)]
+    pub exhausted: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,18 +63,20 @@ pub async fn fetch_hosts_with_state(
     let state_path = state_path.as_ref();
     let after = query_after(days);
     let state = read_state(state_path)?.filter(|state| state.query_after == after);
+    if let Some(state) = state.as_ref().filter(|state| state.exhausted) {
+        return Ok(empty_store(after, state.next_page.max(1), true));
+    }
+
     let start_page = state.map_or(1, |state| state.next_page.max(1));
 
-    let mut store = fetch_hosts(config, days, page_size, start_page, limit).await?;
-    if store.hosts.is_empty() && start_page > 1 {
-        store = fetch_hosts(config, days, page_size, 1, limit).await?;
-    }
+    let store = fetch_hosts(config, days, page_size, start_page, limit).await?;
 
     write_state(
         state_path,
         &FofaState {
             query_after: store.after.clone(),
             next_page: store.next_page,
+            exhausted: store.exhausted,
         },
     )?;
 
@@ -95,6 +100,7 @@ pub async fn fetch_hosts(
     let mut hosts = BTreeSet::new();
     let mut page = start_page.max(1);
     let mut next_page = page;
+    let mut exhausted = false;
 
     while hosts.len() < limit {
         let url = build_search_url(
@@ -108,7 +114,7 @@ pub async fn fetch_hosts(
         let page_hosts = parse_hosts(response);
 
         if page_hosts.is_empty() {
-            next_page = 1;
+            exhausted = true;
             break;
         }
 
@@ -128,6 +134,7 @@ pub async fn fetch_hosts(
         after,
         hosts: hosts.into_iter().collect(),
         next_page,
+        exhausted,
     })
 }
 
@@ -180,6 +187,18 @@ fn build_query(after: &str) -> String {
     format!(
         "protocol==\"socks5\" && \"Version:5 Method:No Authentication(0x00)\" && after=\"{after}\" && country=\"CN\""
     )
+}
+
+fn empty_store(after: String, next_page: u32, exhausted: bool) -> UpstreamStore {
+    let query = build_query(&after);
+
+    UpstreamStore {
+        query,
+        after,
+        hosts: Vec::new(),
+        next_page,
+        exhausted,
+    }
 }
 
 pub fn read_state(path: impl AsRef<Path>) -> Result<Option<FofaState>> {

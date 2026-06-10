@@ -124,6 +124,7 @@ async fn main() -> Result<()> {
             println!("query = {}", store.query);
             println!("after = {}", store.after);
             println!("next_page = {}", store.next_page);
+            println!("exhausted = {}", if store.exhausted { "yes" } else { "no" });
             println!("hosts = {}", store.hosts.len());
             println!("output = {}", paths.candidates.display());
         }
@@ -181,8 +182,17 @@ fn print_pool_status(config: &AppConfig, paths: &RuntimePaths) -> Result<()> {
     println!("max_latency = {} ms", config.max_latency);
     println!("fofa_after = {}", fofa::query_after(pool::FOFA_DAYS));
     match fofa::read_state(&paths.fofa_state)? {
-        Some(state) => println!("fofa_next_page = {}", state.next_page),
-        None => println!("fofa_next_page = 1"),
+        Some(state) => {
+            println!("fofa_next_page = {}", state.next_page);
+            println!(
+                "fofa_exhausted = {}",
+                if state.exhausted { "yes" } else { "no" }
+            );
+        }
+        None => {
+            println!("fofa_next_page = 1");
+            println!("fofa_exhausted = no");
+        }
     }
     println!("online_pool = {}/80", count_pool_lines(&paths.online)?);
     println!(

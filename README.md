@@ -10,7 +10,7 @@ Egrex is a local SOCKS5 proxy forwarder with an upstream SOCKS5 proxy pool. It l
 - Upstream SOCKS5 rotation from the online pool.
 - FOFA-based candidate discovery.
 - FOFA discovery scans assets discovered within the last 10 days by default.
-- FOFA refill stores a page cursor to avoid repeatedly scanning page 1.
+- FOFA refill stores a page cursor to avoid repeatedly scanning page 1, and waits for the search window to move forward after the current window is exhausted.
 - Candidate refill fetches 1000 hosts per page and only refills when the candidate pool drops below 200.
 - Candidate and online pool maintenance while the service is running.
 - Latency-based upstream quality filtering.
@@ -124,6 +124,7 @@ FOFA API
 While the service is running:
 
 - The candidate pool is automatically refilled from FOFA when it drops below the target size.
+- FOFA pagination continues from `fofa_state.toml`; when a page returns no hosts, refill pauses for that search window instead of restarting at page 1.
 - The online pool is checked periodically and replenished from candidates when nodes fail.
 - Each new client connection selects an upstream from the online pool in round-robin order.
 - Upstreams that fail during forwarding are removed from the online pool.
