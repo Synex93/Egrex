@@ -50,31 +50,36 @@ async fn main() -> Result<()> {
             let config = AppConfig::load_or_default(&paths.config)?;
             let listen_addr = config.listen_addr();
             let pid = daemon::start(&paths.pid_lock, listen_addr.clone())?;
-            println!("egrex started in background with pid {pid}");
-            println!("listen = {listen_addr}");
+            println!("{} egrex started in background", green("running"));
+            println!("pid = {pid}");
+            println!("listen = {}", cyan(&listen_addr));
             println!("data_dir = {}", paths.data_dir.display());
         }
         Command::Stop { force } => match daemon::stop(&paths.pid_lock, &paths.stop_lock, force)? {
             StopResult::Stopped { pid, force } => {
                 if force {
-                    println!("egrex force stopped pid {pid}");
+                    println!("{} egrex force stopped pid {pid}", red("stopped"));
                 } else {
-                    println!("egrex stopped gracefully pid {pid}");
+                    println!("{} egrex stopped gracefully pid {pid}", green("stopped"));
                 }
             }
             StopResult::StaleRemoved { pid } => {
-                println!("egrex was not running, removed stale pid.lock for pid {pid}");
+                println!(
+                    "{} egrex was not running, removed stale pid.lock for pid {pid}",
+                    yellow("stale")
+                );
             }
-            StopResult::NotStarted => println!("egrex is not running"),
+            StopResult::NotStarted => println!("{} egrex is not running", red("offline")),
         },
         Command::Status => match daemon::status(&paths.pid_lock)? {
             Status::Running { pid, listen_addr } => {
                 let traffic = traffic::read(&paths.traffic)?;
                 let config = AppConfig::load_or_default(&paths.config)?;
-                println!("egrex is running with pid {pid}");
+                println!("status = {}", green("running"));
+                println!("pid = {pid}");
                 println!(
                     "listen = {}",
-                    listen_addr.unwrap_or_else(|| "unknown".to_string())
+                    cyan(&listen_addr.unwrap_or_else(|| "unknown".to_string()))
                 );
                 println!("data_dir = {}", paths.data_dir.display());
                 println!("upload = {}", format_bytes(traffic.upload_bytes));
@@ -86,17 +91,18 @@ async fn main() -> Result<()> {
                 print_pool_status(&config, &paths)?;
             }
             Status::Stale { pid, listen_addr } => {
-                println!("egrex is not running, but pid.lock contains stale pid {pid}");
+                println!("status = {}", yellow("stale"));
+                println!("pid = {pid}");
                 println!(
                     "listen = {}",
-                    listen_addr.unwrap_or_else(|| "unknown".to_string())
+                    cyan(&listen_addr.unwrap_or_else(|| "unknown".to_string()))
                 );
                 println!("data_dir = {}", paths.data_dir.display());
                 let config = AppConfig::load_or_default(&paths.config)?;
                 print_pool_status(&config, &paths)?;
             }
             Status::NotStarted => {
-                println!("egrex is not running");
+                println!("status = {}", red("offline"));
                 println!("data_dir = {}", paths.data_dir.display());
                 let config = AppConfig::load_or_default(&paths.config)?;
                 print_pool_status(&config, &paths)?;
@@ -140,7 +146,8 @@ async fn main() -> Result<()> {
             }
 
             config.save(&paths.config)?;
-            println!("listen = {}", config.listen_addr());
+            println!("{} config updated", green("ok"));
+            println!("listen = {}", cyan(&config.listen_addr()));
             println!("config = {}", paths.config.display());
         }
     }
@@ -192,6 +199,26 @@ fn print_pool_status(config: &AppConfig, paths: &RuntimePaths) -> Result<()> {
         }
     );
     Ok(())
+}
+
+fn green(value: &str) -> String {
+    color("32", value)
+}
+
+fn yellow(value: &str) -> String {
+    color("33", value)
+}
+
+fn red(value: &str) -> String {
+    color("31", value)
+}
+
+fn cyan(value: &str) -> String {
+    color("36", value)
+}
+
+fn color(code: &str, value: &str) -> String {
+    format!("\x1b[{code}m{value}\x1b[0m")
 }
 
 fn count_pool_lines(path: &std::path::Path) -> Result<usize> {

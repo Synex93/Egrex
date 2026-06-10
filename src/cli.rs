@@ -33,7 +33,7 @@ pub enum Command {
         #[arg(long, default_value_t = 10)]
         days: i64,
         /// Number of results to fetch from one page.
-        #[arg(long, default_value_t = 100)]
+        #[arg(long, default_value_t = 1000)]
         size: u32,
         /// FOFA search page number.
         #[arg(long, default_value_t = 1)]

@@ -13,14 +13,15 @@ use tokio::{
 use crate::{checker, config::AppConfig, fofa};
 
 const ONLINE_TARGET: usize = 80;
-const CANDIDATE_TARGET: usize = 200;
+const CANDIDATE_LOW_WATERMARK: usize = 200;
+const CANDIDATE_REFILL_LIMIT: usize = 1000;
 const BOOTSTRAP_CHECK_LIMIT: usize = 100;
 const CHECK_CONCURRENCY: usize = 32;
 const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 const CHECK_CACHE_TTL: Duration = Duration::from_secs(10);
 const MAINTAIN_INTERVAL: Duration = Duration::from_secs(10);
 pub const FOFA_DAYS: i64 = 10;
-const FOFA_PAGE_SIZE: u32 = 100;
+const FOFA_PAGE_SIZE: u32 = 1000;
 
 #[derive(Debug, Clone)]
 pub struct ProxyPool {
@@ -51,16 +52,16 @@ impl ProxyPool {
         let online = read_existing(&online_path)?;
         let mut candidates = read_existing(&candidates_path)?;
 
-        if candidates.len() < CANDIDATE_TARGET {
+        if candidates.len() < CANDIDATE_LOW_WATERMARK {
             let fetched = fofa::fetch_hosts_with_state(
                 config,
                 &fofa_state_path,
                 FOFA_DAYS,
                 FOFA_PAGE_SIZE,
-                CANDIDATE_TARGET,
+                CANDIDATE_REFILL_LIMIT,
             )
             .await?;
-            candidates = merge_hosts(candidates, fetched.hosts, CANDIDATE_TARGET);
+            candidates = merge_hosts(candidates, fetched.hosts);
             checker::write_upstreams(&candidates_path, &candidates)?;
         }
 
@@ -202,7 +203,7 @@ impl ProxyPool {
             inner.candidates.len()
         };
 
-        if current_len >= CANDIDATE_TARGET {
+        if current_len >= CANDIDATE_LOW_WATERMARK {
             return Ok(());
         }
 
@@ -211,16 +212,15 @@ impl ProxyPool {
             &self.fofa_state_path,
             FOFA_DAYS,
             FOFA_PAGE_SIZE,
-            CANDIDATE_TARGET,
+            CANDIDATE_REFILL_LIMIT,
         )
         .await?;
         let mut inner = self.inner.lock().await;
         let online = inner.online.iter().cloned().collect::<BTreeSet<_>>();
-        let merged = merge_hosts(inner.candidates.clone(), fetched.hosts, CANDIDATE_TARGET);
+        let merged = merge_hosts(inner.candidates.clone(), fetched.hosts);
         inner.candidates = merged
             .into_iter()
             .filter(|upstream| !online.contains(upstream))
-            .take(CANDIDATE_TARGET)
             .collect();
         write_pool(&self.candidates_path, &inner.candidates)?;
 
@@ -330,13 +330,12 @@ fn write_pool(path: &Path, hosts: &[String]) -> Result<()> {
     checker::write_upstreams(path, hosts)
 }
 
-fn merge_hosts(current: Vec<String>, fetched: Vec<String>, limit: usize) -> Vec<String> {
+fn merge_hosts(current: Vec<String>, fetched: Vec<String>) -> Vec<String> {
     current
         .into_iter()
         .chain(fetched)
         .filter(|host| !host.trim().is_empty())
         .collect::<BTreeSet<_>>()
         .into_iter()
-        .take(limit)
         .collect()
 }
