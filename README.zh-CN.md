@@ -24,9 +24,10 @@ cargo build --release
 
 ```text
 target/release/Egrex.exe
+target/release/Egrex
 ```
 
-也可以把 `Egrex.exe` 复制到 `PATH` 中的目录，然后直接使用 `Egrex.exe` 命令。
+Windows 使用 `Egrex.exe`，Linux 使用 `Egrex`。也可以把构建产物复制到 `PATH` 中的目录后直接运行。
 
 ## 快速开始
 
@@ -134,7 +135,7 @@ FOFA API
 
 ## 运行时配置重载
 
-服务运行时会自动重新加载 `config.toml`。
+服务运行时会自动重新加载 `~/.egrex/config.toml`。
 
 下面这些字段可以在不重启服务的情况下生效：
 
@@ -149,7 +150,13 @@ FOFA API
 
 ## 运行时文件
 
-下面这些文件会在本地生成，并且已被 Git 忽略：
+运行时文件统一保存在用户 home 目录下：
+
+```text
+~/.egrex
+```
+
+下面这些文件会生成到该目录，并且已被 Git 忽略：
 
 ```text
 config.toml
@@ -161,4 +168,4 @@ candidates.lock
 online.lock
 ```
 
-不要提交 `config.toml`，它可能包含私有 FOFA 凭据。
+不要提交 `~/.egrex/config.toml`，它可能包含私有 FOFA 凭据。

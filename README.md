@@ -22,6 +22,8 @@ Build the binary:
 cargo build --release
 ```
 
+Windows examples use `target/release/Egrex.exe`. On Linux, use `target/release/Egrex` instead. You can also copy the executable into a directory included in `PATH`.
+
 Set the local listener if needed:
 
 ```bash
@@ -126,7 +128,7 @@ While the service is running:
 
 ## Runtime Config Reload
 
-The running service reloads `config.toml` automatically.
+The running service reloads `~/.egrex/config.toml` automatically.
 
 Changes to these fields are applied without restarting:
 
@@ -141,7 +143,13 @@ Changing `host` or `port` causes the listener to rebind to the new address. Exis
 
 ## Runtime Files
 
-These files are generated locally and are ignored by Git:
+Runtime files are stored under the user home directory:
+
+```text
+~/.egrex
+```
+
+These files are generated there and are ignored by Git:
 
 ```text
 config.toml
@@ -153,4 +161,4 @@ candidates.lock
 online.lock
 ```
 
-Do not commit `config.toml`; it may contain private FOFA credentials.
+Do not commit `~/.egrex/config.toml`; it may contain private FOFA credentials.

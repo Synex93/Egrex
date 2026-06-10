@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
     name = "egrex",
     version,
     about = "Local SOCKS5 proxy pool forwarder",
-    long_about = "Egrex starts a local SOCKS5 proxy and rotates outbound connections through verified upstream SOCKS5 nodes. Configuration is saved to config.toml, and the background service maintains candidate and online pools automatically."
+    long_about = "Egrex starts a local SOCKS5 proxy and rotates outbound connections through verified upstream SOCKS5 nodes. Runtime files are stored under ~/.egrex, and the background service maintains candidate and online pools automatically."
 )]
 pub struct Cli {
     /// Command to run. If omitted, the proxy runs in foreground mode.
@@ -39,7 +39,7 @@ pub enum Command {
         #[arg(long, default_value_t = 1)]
         page: u32,
     },
-    /// Update a config value and save it to config.toml.
+    /// Update a config value and save it to ~/.egrex/config.toml.
     Set {
         #[command(subcommand)]
         command: SetCommand,
@@ -79,7 +79,7 @@ pub enum SetCommand {
     /// Set the FOFA API key.
     #[command(alias = "fofa_key")]
     FofaKey {
-        /// FOFA API key. It is saved to local config.toml and should not be committed.
+        /// FOFA API key. It is saved to ~/.egrex/config.toml and should not be committed.
         value: String,
     },
 }

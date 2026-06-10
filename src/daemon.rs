@@ -254,9 +254,10 @@ fn process_is_running(pid: u32) -> bool {
 }
 
 #[cfg(not(windows))]
-fn terminate_process(pid: u32, _force: bool) -> Result<()> {
+fn terminate_process(pid: u32, force: bool) -> Result<()> {
+    let signal = if force { "-KILL" } else { "-TERM" };
     let status = Command::new("kill")
-        .args(["-TERM", &pid.to_string()])
+        .args([signal, &pid.to_string()])
         .status()
         .context("failed to run kill")?;
 
