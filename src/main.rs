@@ -108,17 +108,23 @@ async fn main() -> Result<()> {
                 print_pool_status(&config, &paths)?;
             }
         },
-        Command::Update { days, size, page } => {
+        Command::Update {
+            days,
+            size,
+            limit,
+            page,
+        } => {
             let config = AppConfig::load_or_default(&paths.config)?;
-            let store = fofa::update_many(
-                &config,
-                &paths.candidates,
-                days,
-                size,
-                page,
-                CANDIDATE_TARGET,
-            )
-            .await?;
+            let store =
+                fofa::update_many(&config, &paths.candidates, days, size, page, limit).await?;
+            fofa::write_state(
+                &paths.fofa_state,
+                &fofa::FofaState {
+                    query_after: store.after.clone(),
+                    next_page: store.next_page,
+                    exhausted: store.exhausted,
+                },
+            )?;
 
             println!("updated upstream hosts");
             println!("query = {}", store.query);
@@ -126,6 +132,7 @@ async fn main() -> Result<()> {
             println!("next_page = {}", store.next_page);
             println!("exhausted = {}", if store.exhausted { "yes" } else { "no" });
             println!("hosts = {}", store.hosts.len());
+            println!("state = {}", paths.fofa_state.display());
             println!("output = {}", paths.candidates.display());
         }
         Command::Set { command } => {

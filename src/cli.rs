@@ -27,7 +27,7 @@ pub enum Command {
     },
     /// Show process, listen address, traffic, and pool status.
     Status,
-    /// Fetch SOCKS5 upstream candidates from FOFA.
+    /// Fetch SOCKS5 upstream candidates from FOFA and reset the FOFA page cursor.
     Update {
         /// Search for SOCKS5 nodes discovered within the last number of days.
         #[arg(long, default_value_t = 30)]
@@ -35,6 +35,9 @@ pub enum Command {
         /// Number of results to fetch from one page.
         #[arg(long, default_value_t = 1000)]
         size: u32,
+        /// Maximum number of hosts to save into the candidate pool.
+        #[arg(long, default_value_t = 1000)]
+        limit: usize,
         /// FOFA search page number.
         #[arg(long, default_value_t = 1)]
         page: u32,

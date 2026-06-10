@@ -90,6 +90,8 @@ target/release/Egrex.exe status
 target/release/Egrex.exe update
 ```
 
+`update` writes candidates to `~/.egrex/candidates.lock` and updates `~/.egrex/fofa_state.toml` to the fetched page cursor. Use `--page` to reset the cursor manually, and `--limit` to control how many hosts are saved.
+
 Configuration commands:
 
 ```bash

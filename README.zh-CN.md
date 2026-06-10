@@ -97,6 +97,8 @@ Egrex.exe status
 Egrex.exe update
 ```
 
+`update` 会把候选地址写入 `~/.egrex/candidates.lock`，同时把本次拉取后的页码游标写入 `~/.egrex/fofa_state.toml`。需要手动重置游标时可以使用 `--page`，需要控制保存数量时可以使用 `--limit`。
+
 配置命令：
 
 ```bash

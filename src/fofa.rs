@@ -223,7 +223,7 @@ pub fn read_state(path: impl AsRef<Path>) -> Result<Option<FofaState>> {
     Ok(Some(state))
 }
 
-fn write_state(path: impl AsRef<Path>, state: &FofaState) -> Result<()> {
+pub fn write_state(path: impl AsRef<Path>, state: &FofaState) -> Result<()> {
     let path = path.as_ref();
     let content = toml::to_string_pretty(state).context("failed to serialize fofa state")?;
     fs::write(path, content)
